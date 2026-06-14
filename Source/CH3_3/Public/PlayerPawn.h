@@ -30,11 +30,15 @@ public:
 	UCameraComponent* CameraComponent;
 	
 protected:
-	virtual void BeginPlay() override;
-
-	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	UFUNCTION()
+	void Move(const FInputActionValue& value);
+	UFUNCTION()
+	void Look(const FInputActionValue& value);
+	
+private:
+	float MoveSpeed;
+	float RotationSpeed;
 
 };
