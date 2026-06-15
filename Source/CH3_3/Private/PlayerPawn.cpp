@@ -13,7 +13,7 @@
 // Sets default values
 APlayerPawn::APlayerPawn()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>(TEXT("CapsuleComp"));
 	SetRootComponent(CapsuleComponent);
@@ -33,8 +33,12 @@ APlayerPawn::APlayerPawn()
 	CameraComponent->SetupAttachment(SpringArmComponent,USpringArmComponent::SocketName);
 	CameraComponent->bUsePawnControlRotation = false;
 	
+	Gravity = -980.0f;
+	VerticalVelocity= 0;	
 	MoveSpeed = 100.0f;
 	RotationSpeed = 1.0f;
+	RollSpeed = 4.0f;
+	FlySpeed = 300.0f;
 }
 
 // Called to bind functionality to input
@@ -70,37 +74,88 @@ void APlayerPawn::Move(const FInputActionValue& value)
 {
 	if (!Controller) return;
 	float DeltaTime = GetWorld()->GetDeltaSeconds();
-	const FVector2D MoveInput = value.Get<FVector2D>();
+	const FVector MoveInput = value.Get<FVector>();
 	
-	FVector MoveForward = GetActorForwardVector();
-	FVector MoveRight = GetActorRightVector();
+	FVector MoveForward = FVector(MoveInput.X*CurrentMoveSpeed*DeltaTime,0.0f,0.0f);
+	FVector MoveRight = FVector(0.0f,MoveInput.Y*CurrentMoveSpeed*DeltaTime,0.0f);
+	FVector MoveUp = FVector(0.0f,0.0f,MoveInput.Z*FlySpeed*DeltaTime);
 	
 	if (!FMath::IsNearlyZero(MoveInput.X))
 	{
-		AddActorWorldOffset(MoveInput.X*MoveForward*MoveSpeed*DeltaTime,true);
-
+		AddActorLocalOffset(MoveForward,true);
 	}
 	if (!FMath::IsNearlyZero(MoveInput.Y))
 	{
-		AddActorWorldOffset(MoveInput.Y*MoveRight*MoveSpeed*DeltaTime,true);
-
+		AddActorLocalOffset(MoveRight,true);
+	}
+	if (!FMath::IsNearlyZero(MoveInput.Z))
+	{
+		AddActorLocalOffset(MoveUp,true);
 	}
 }
 
 void APlayerPawn::Look(const FInputActionValue& value)
 {
 	if (!Controller) return;
-	const FVector2D LookInput = value.Get<FVector2D>();
+	const FVector LookInput = value.Get<FVector>();
 	if (!FMath::IsNearlyZero(LookInput.X))
 	{
 		AddActorLocalRotation(FRotator(0.0f,LookInput.X*RotationSpeed,0.0f),true);
 	}
 	if (!FMath::IsNearlyZero(LookInput.Y))
 	{
+		
 		//SpringArm의 현재 Pitch를 가져와서 입력값만큼 더하고, 범위를 제한한 뒤 다시 적용"**
 		FRotator NewRotation = SpringArmComponent->GetRelativeRotation();
 		NewRotation.Pitch += LookInput.Y*RotationSpeed;
 		NewRotation.Pitch = FMath::Clamp(NewRotation.Pitch,-80.0f,80.0f);
 		SpringArmComponent->SetRelativeRotation(NewRotation);
+		UE_LOG(LogTemp, Warning, TEXT("SpringArm Pitch: %f"), NewRotation.Pitch);
 	}
+	
+	if (!FMath::IsNearlyZero(LookInput.Z))
+	{
+		AddActorLocalRotation(FRotator(0.0f,0.0f, LookInput.Z*RollSpeed),true);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("LookInput: X=%f Y=%f Z=%f"), LookInput.X, LookInput.Y, LookInput.Z);
+
+}
+
+void APlayerPawn::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	if (CheckGroundCollision())
+	{
+		VerticalVelocity = 0;
+		CurrentMoveSpeed = MoveSpeed;
+	}
+	else
+	{
+		VerticalVelocity += Gravity * DeltaTime;
+		CurrentMoveSpeed = MoveSpeed * 0.5;
+		AddActorWorldOffset(FVector(0, 0, VerticalVelocity * DeltaTime), true);
+	}
+}
+
+bool APlayerPawn::CheckGroundCollision()
+{
+	FHitResult HitResult;
+	FVector Start = GetActorLocation();
+	FVector End = Start - FVector(0.0f,0.0f,1.0f);
+	
+	FCollisionShape Shape = FCollisionShape::MakeCapsule(CapsuleComponent->GetScaledCapsuleRadius(),CapsuleComponent->GetScaledCapsuleHalfHeight());
+	
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+	
+	bool bHit = GetWorld()->SweepSingleByChannel(
+		HitResult,
+		Start,
+		End,
+		FQuat(GetActorRotation()),
+		ECC_Visibility,
+		Shape,
+		Params);
+	
+	return bHit;
 }

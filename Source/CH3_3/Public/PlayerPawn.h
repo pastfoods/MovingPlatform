@@ -28,7 +28,10 @@ public:
 	USpringArmComponent* SpringArmComponent;
 	UPROPERTY(VisibleAnywhere,BlueprintReadOnly,Category = "Camera")
 	UCameraComponent* CameraComponent;
-	
+	float MoveSpeed;
+	float RotationSpeed;
+	float RollSpeed;
+	float FlySpeed;
 protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
@@ -36,9 +39,11 @@ protected:
 	void Move(const FInputActionValue& value);
 	UFUNCTION()
 	void Look(const FInputActionValue& value);
-	
+	virtual void Tick(float DeltaSeconds) override;
+	bool CheckGroundCollision();
 private:
-	float MoveSpeed;
-	float RotationSpeed;
+	float Gravity;
+	float VerticalVelocity;
+	float CurrentMoveSpeed;
 
 };
