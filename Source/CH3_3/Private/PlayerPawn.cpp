@@ -35,10 +35,10 @@ APlayerPawn::APlayerPawn()
 	
 	Gravity = -980.0f;
 	VerticalVelocity= 0;	
-	MoveSpeed = 100.0f;
+	MoveSpeed = 300.0f;
 	RotationSpeed = 1.0f;
 	RollSpeed = 4.0f;
-	FlySpeed = 300.0f;
+	FlySpeed = 400.0f;
 }
 
 // Called to bind functionality to input
